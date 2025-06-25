@@ -4,24 +4,13 @@ const { igdl, ttdl, fbdown, youtube, twitter } = require("btch-downloader");
 // Determine current environment
 const NODE_ENV = process.env.NODE_ENV || "development";
 const isProduction = NODE_ENV === "production"
-const PORT = process.env.PORT || 3000;
-
-// Select correct Stripe secret key
 const stripeSecretKey = isProduction
     ? process.env.STRIPE_SECRET_PROD_KEY
     : process.env.STRIPE_SECRET_TEST_KEY;
-
-const host = isProduction ? process.env.HOST_URL_PROD : process.env.HOST_URL_TEST;
 const stripe = require("stripe")(stripeSecretKey);
-
-// Environment-based redirect URLs
-const STRIPE_SUCCESS_URL = isProduction
-    ? `${host}/success`
-    : `${host}:${PORT}/success`;
-
-const STRIPE_CANCEL_URL = isProduction
-    ? `${host}/cancel`
-    : `${host}:${PORT}/cancel`;
+const host = isProduction ? process.env.HOST_URL_PROD : process.env.HOST_URL_TEST;
+const STRIPE_SUCCESS_URL = `${host}/success`;
+const STRIPE_CANCEL_URL = `${host}/cancel`;
 
 // Downloader class logic
 class Downloader {
@@ -29,7 +18,6 @@ class Downloader {
         this.platform = platform;
         this.fetchFunction = fetchFunction;
     }
-
     async fetchData(url) {
         if (!url) throw new Error("URL is missing or invalid.");
         if (typeof this.fetchFunction !== "function") {
@@ -60,7 +48,6 @@ const marshalData = (platform, data) => {
         channelUrl: "N/A",
         views: "N/A",
     };
-
     switch (platform.toLowerCase()) {
         case "tiktok":
             return {
@@ -115,14 +102,11 @@ exports.fetchDataForPlatform = async (req, res) => {
     try {
         const { platform, url } = req.body;
         if (!platform || !url) throw new Error("Missing platform or URL");
-
         const fetchFunction = platformFetchers[platform.toLowerCase()];
         if (!fetchFunction) throw new Error(`Unsupported platform: ${platform}`);
-
         const downloader = new Downloader(platform, fetchFunction);
         const rawData = await downloader.fetchData(url);
         const data = marshalData(platform, rawData);
-
         res.status(200).json(data);
     } catch (err) {
         console.error("Fetch error:", err.message);
@@ -150,7 +134,6 @@ exports.createCheckoutSession = async (req, res) => {
             success_url: STRIPE_SUCCESS_URL + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url: STRIPE_CANCEL_URL,
         });
-
         res.status(200).json({ id: session.id });
     } catch (err) {
         console.error("Stripe error:", err.message);
@@ -163,7 +146,6 @@ exports.verifyStripePayment = async (req, res) => {
     try {
         const { sessionId } = req.body;
         const session = await stripe.checkout.sessions.retrieve(sessionId);
-
         if (session.payment_status === "paid") {
             res.status(200).json({ success: true });
         } else {
